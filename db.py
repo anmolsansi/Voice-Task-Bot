@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 DATABASE_URL = "sqlite:///./tasks.db"
 
@@ -22,6 +22,16 @@ class Task(Base):
     times_csv = Column(String, nullable=False)  # "10:00,13:00,15:00,18:00,20:00"
     is_range = Column(Boolean, default=False)
     completed = Column(Boolean, default=False)
+    reminders = relationship("Reminder", backref="task")
+
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    run_at = Column(DateTime, nullable=False)
+    sent = Column(Boolean, default=False)
 
 
 def init_db():
