@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -57,3 +57,24 @@ def create_calendar_event(summary: str, start_at, timezone: str):
         return created["id"]
     except Exception as exc:
         raise RuntimeError(f"create_calendar_event failed: {exc}") from exc
+
+
+def list_upcoming_events(time_min: datetime, time_max: datetime, max_results: int = 50):
+    try:
+        service = get_calendar_service()
+        calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary")
+        events = (
+            service.events()
+            .list(
+                calendarId=calendar_id,
+                timeMin=time_min.isoformat(),
+                timeMax=time_max.isoformat(),
+                maxResults=max_results,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
+        return events.get("items", [])
+    except Exception as exc:
+        raise RuntimeError(f"list_upcoming_events failed: {exc}") from exc

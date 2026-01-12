@@ -122,6 +122,8 @@ OLLAMA_BASE_URL=http://localhost:11434
 GOOGLE_CALENDAR_ID=primary
 GOOGLE_TOKEN_PATH=token.json
 GOOGLE_CREDS_PATH=credentials.json
+GOOGLE_SYNC_DAYS=7
+GOOGLE_SYNC_INTERVAL_MINUTES=5
 
 
 An example template lives in .env.example.
@@ -173,6 +175,7 @@ Google Calendar Setup (exact-time tasks only)
 2) Create OAuth credentials and download credentials.json
 3) Place credentials.json in the project root (or set GOOGLE_CREDS_PATH)
 4) The first exact-time task will prompt an OAuth flow and store token.json
+5) Calendar sync will pull upcoming events and create Telegram reminders for exact-time events
 
 How Many Notifications Will I Get?
 

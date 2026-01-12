@@ -11,7 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.base import JobLookupError
 
 from db import SessionLocal, Task, Reminder, init_db
-from google_calendar import create_calendar_event
+from google_calendar import create_calendar_event, list_upcoming_events
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("voice_task_bot")
@@ -31,6 +31,8 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:latest")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+GOOGLE_SYNC_DAYS = int(os.getenv("GOOGLE_SYNC_DAYS", "7"))
+GOOGLE_SYNC_INTERVAL_MINUTES = int(os.getenv("GOOGLE_SYNC_INTERVAL_MINUTES", "5"))
 
 print(f"[DEBUG] TIMEZONE: {TIMEZONE}")
 print(f"[DEBUG] USE_OLLAMA: {USE_OLLAMA}")
@@ -402,11 +404,92 @@ def schedule_pending_reminders_from_db(limit: int = 500):
         session.close()
 
 
+def sync_google_calendar_events():
+    """
+    Pull upcoming Google Calendar events and schedule Telegram reminders.
+    Only exact-time events are synced (all-day events are skipped).
+    """
+    session = SessionLocal()
+    try:
+        now = datetime.now(tz)
+        window_end = now + timedelta(days=GOOGLE_SYNC_DAYS)
+        events = list_upcoming_events(time_min=now, time_max=window_end, max_results=100)
+
+        for event in events:
+            event_id = event.get("id")
+            if not event_id:
+                continue
+
+            start_info = event.get("start") or {}
+            start_dt_raw = start_info.get("dateTime")
+            if not start_dt_raw:
+                continue
+
+            try:
+                start_at = datetime.fromisoformat(start_dt_raw)
+                start_at = ensure_tzaware(start_at)
+            except Exception:
+                continue
+
+            if start_at <= now:
+                continue
+
+            existing = (
+                session.query(Task)
+                .filter(Task.calendar_event_id == event_id)
+                .first()
+            )
+            if existing:
+                continue
+
+            task_text = (event.get("summary") or "Calendar event").strip()
+            reminder_datetimes = [
+                start_at - timedelta(minutes=5),
+                start_at,
+            ]
+            times_csv = ",".join([rd.strftime("%H:%M") for rd in reminder_datetimes])
+
+            db_task = Task(
+                raw_text=task_text,
+                task=task_text,
+                date=start_at.date(),
+                times_csv=times_csv,
+                start_at=start_at,
+                calendar_event_id=event_id,
+                has_exact_time=True,
+                is_range=False,
+                completed=False,
+            )
+            session.add(db_task)
+            session.flush()
+
+            for run_at in reminder_datetimes:
+                run_at = ensure_tzaware(run_at)
+                reminder = Reminder(task_id=db_task.id, run_at=run_at, sent=False)
+                session.add(reminder)
+                session.flush()
+                schedule_reminder_job(reminder.id, run_at)
+
+        session.commit()
+    except Exception:
+        log_exception("sync_google_calendar_events failed")
+    finally:
+        session.close()
+
+
 @app.on_event("startup")
 def startup():
     try:
         scheduler.start()
         schedule_pending_reminders_from_db()
+        scheduler.add_job(
+            sync_google_calendar_events,
+            trigger="interval",
+            minutes=GOOGLE_SYNC_INTERVAL_MINUTES,
+            id="google_calendar_sync",
+            replace_existing=True,
+        )
+        sync_google_calendar_events()
     except Exception:
         log_exception("startup failed")
 
