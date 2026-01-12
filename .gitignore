@@ -3,3 +3,8 @@ tasks.db
 __pycache__/
 .venv/
 .DS_Store
+token.json
+credentials.json
+PROJECT_DETAILS.txt
+credentials.json
+.idea/

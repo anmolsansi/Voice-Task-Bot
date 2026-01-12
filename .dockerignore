@@ -7,3 +7,5 @@ __pycache__/
 tasks.db
 .git/
 .DS_Store
+token.json
+credentials.json

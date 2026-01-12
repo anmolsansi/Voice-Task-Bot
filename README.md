@@ -36,6 +36,8 @@ Smart date understanding – today, tomorrow, weekdays, weekend / next weekend, 
 
 Ollama-powered NLP (optional) – uses a local LLM when available, but falls back to rules/dateparser when AI is unavailable.
 
+Exact-time tasks – if a task includes a specific time, a Google Calendar event is created and reminders are sent 5 minutes before and at the exact time.
+
 Database-aware intelligence – recent tasks are passed to the LLM to prevent duplicates; DB-level dedupe also exists.
 
 Aggressive reminders – multiple reminders per day by default (configured in reminder_times()); custom times supported via NLP.
@@ -117,6 +119,10 @@ USE_OLLAMA=0
 OLLAMA_MODEL=mistral:latest
 OLLAMA_BASE_URL=http://localhost:11434
 
+GOOGLE_CALENDAR_ID=primary
+GOOGLE_TOKEN_PATH=token.json
+GOOGLE_CREDS_PATH=credentials.json
+
 
 An example template lives in .env.example.
 
@@ -160,6 +166,13 @@ Marks a task completed.
 
 GET /telegram_test
 Sends a test Telegram message (useful for setup validation).
+
+Google Calendar Setup (exact-time tasks only)
+
+1) Create a Google Cloud project and enable the Google Calendar API
+2) Create OAuth credentials and download credentials.json
+3) Place credentials.json in the project root (or set GOOGLE_CREDS_PATH)
+4) The first exact-time task will prompt an OAuth flow and store token.json
 
 How Many Notifications Will I Get?
 

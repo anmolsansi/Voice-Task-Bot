@@ -20,6 +20,9 @@ class Task(Base):
     task = Column(String, nullable=False)
     date = Column(Date, nullable=False)
     times_csv = Column(String, nullable=False)  # "10:00,13:00,15:00,18:00,20:00"
+    start_at = Column(DateTime, nullable=True)  # timezone-aware exact datetime
+    calendar_event_id = Column(String, nullable=True)
+    has_exact_time = Column(Boolean, default=False)
     is_range = Column(Boolean, default=False)
     completed = Column(Boolean, default=False)
     reminders = relationship("Reminder", backref="task")
@@ -35,4 +38,7 @@ class Reminder(Base):
 
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        raise RuntimeError(f"init_db failed: {exc}") from exc
